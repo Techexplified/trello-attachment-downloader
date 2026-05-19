@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
   try {
-    const key = "6b9d0b80272b4bddecefab2e0b93f8e2";
+    const key = "81e7a967a93296760fb7936ac9c1ea17";
     const decodedUrl = decodeURIComponent(url);
     const sep = decodedUrl.includes('?') ? '&' : '?';
     const finalUrl = `${decodedUrl}${sep}key=${key}&token=${token}`;
