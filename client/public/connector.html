@@ -1,32 +1,42 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <script src="https://p.trellocdn.com/power-up.min.js"></script>
-    <script>
-      window.TrelloPowerUp.initialize({
-        'board-buttons': function(t) {
-          return [{
-            icon: {
-             dark: 'https://trello-attachment-downloader.vercel.app/icon.svg',
-light: 'https://trello-attachment-downloader.vercel.app/icon.svg'
-            },
-            text: 'Download Attachments',
-            callback: function(t) {
-             return t.modal({
-  url: 'https://trello-attachment-downloader.vercel.app',
-  title: 'Downloader',
-  height: 580,
-  fullscreen: false,
-});
-            }
-          }];
-        }
-      }, {
-        appKey: '81e7a967a93296760fb7936ac9c1ea17', 
-        appName: 'Downloader'                
+window.TrelloPowerUp.initialize({
+
+  // ✅ BOARD BUTTON
+  'board-buttons': function(t) {
+    return [{
+      icon: {
+        dark: 'https://downloader-rho-flame.vercel.app/icon.svg',
+        light: 'https://downloader-rho-flame.vercel.app/icon.svg'
+      },
+      text: 'Download Attachments',
+      callback: function(t) {
+        return t.modal({
+          url: 'https://downloader-rho-flame.vercel.app',
+          title: 'Downloader',
+          height: 420,
+          fullscreen: false,
+        });
+      }
+    }];
+  },
+
+
+  'authorization-status': function(t) {
+    return t.get('member', 'private', 'token')
+      .then(function(token) {
+        return { authorized: !!token };
       });
-    </script>
-  </head>
-  <body></body>
-</html>
+  },
+
+ 
+  'show-authorization': function(t) {
+    return t.popup({
+      title: 'Authorize',
+      url: 'https://downloader-rho-flame.vercel.app/authorize.html',
+      height: 140
+    });
+  }
+
+}, {
+  appKey: '81e7a967a93296760fb7936ac9c1ea17',
+  appName: 'Downloader'
+});

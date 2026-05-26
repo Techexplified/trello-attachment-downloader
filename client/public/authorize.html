@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body style="display:flex; justify-content:center; align-items:center; height:100vh;">
+
+  <button id="authBtn" style="padding:10px 20px; font-size:16px;">
+    Authorize
+  </button>
+
+  <script>
+    var t = TrelloPowerUp.iframe();
+
+    document.getElementById("authBtn").addEventListener("click", function() {
+      
+    
+      t.set('member', 'private', 'token', 'dummy-token')
+        .then(function() {
+          t.closePopup();
+        });
+
+    });
+  </script>
+
+</body>
+</html>
