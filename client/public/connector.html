@@ -11,13 +11,13 @@ window.TrelloPowerUp.initialize({
   'board-buttons': function(t) {
     return [{
       icon: {
-        dark: 'https://downloader-rho-flame.vercel.app/icon.svg',
-        light: 'https://downloader-rho-flame.vercel.app/icon.svg'
+        dark: 'https://trello-attachment-downloader.vercel.app/icon.svg',
+        light: 'https://trello-attachment-downloader.vercel.app/icon.svg'
       },
       text: 'Download Attachments',
       callback: function(t) {
         return t.modal({
-          url: 'https://downloader-rho-flame.vercel.app',
+          url: 'https://trello-attachment-downloader.vercel.app',
           title: 'Downloader',
           height: 420,
           fullscreen: false
@@ -36,7 +36,7 @@ window.TrelloPowerUp.initialize({
   'show-authorization': function(t) {
     return t.popup({
       title: 'Authorize',
-      url: 'https://downloader-rho-flame.vercel.app/authorize.html',
+      url: 'https://trello-attachment-downloader.vercel.app/authorize.html',
       height: 140
     });
   }
