@@ -1,6 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+</head>
+<body>
+
+<script>
 window.TrelloPowerUp.initialize({
 
-  // ✅ BOARD BUTTON
   'board-buttons': function(t) {
     return [{
       icon: {
@@ -13,12 +20,11 @@ window.TrelloPowerUp.initialize({
           url: 'https://downloader-rho-flame.vercel.app',
           title: 'Downloader',
           height: 420,
-          fullscreen: false,
+          fullscreen: false
         });
       }
     }];
   },
-
 
   'authorization-status': function(t) {
     return t.get('member', 'private', 'token')
@@ -27,7 +33,6 @@ window.TrelloPowerUp.initialize({
       });
   },
 
- 
   'show-authorization': function(t) {
     return t.popup({
       title: 'Authorize',
@@ -40,3 +45,7 @@ window.TrelloPowerUp.initialize({
   appKey: '81e7a967a93296760fb7936ac9c1ea17',
   appName: 'Downloader'
 });
+</script>
+
+</body>
+</html>
