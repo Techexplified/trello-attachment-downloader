@@ -195,9 +195,11 @@ function DownloaderScreen({ attachments, token }) {
       a.href = url; a.download = "trello-attachments.zip";
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      if (err.name !== "AbortError") { console.error("Download failed:", err); setError("Download failed: " + err.message); }
-    } finally {
+    }  catch (err) {
+  if (err.name !== "AbortError") {
+    setError("Download failed: " + err.message);
+  }
+}finally {
       setDownloading(false); abortRef.current = null;
     }
   };
@@ -326,6 +328,7 @@ export default function App() {
   const [attachments, setAttachments] = useState([]);
   const [token, setToken]             = useState(null);
   const [initLoading, setInitLoading] = useState(true);
+  const [error, setError] = useState(null);
   const tRef = useRef(null);
 
   useEffect(() => {
@@ -338,7 +341,7 @@ export default function App() {
         if (isAuth) { setAuthorized(true); await loadAttachments(trello); }
         else { setAuthorized(false); }
       } catch (err) {
-        console.error("[Downloader] useEffect error:", err);
+       
         setAuthorized(false);
       } finally {
         setInitLoading(false);
@@ -355,8 +358,8 @@ export default function App() {
       const { attachments: atts } = await fetchBoardAttachments(board.id, key, tok);
       setAttachments(atts);
     } catch (err) {
-      console.error("[Downloader] Failed:", err.message, err);
-    }
+  setError("Failed to load attachments");
+}
   };
 
   const handleAuthorize = async () => {
@@ -365,9 +368,9 @@ export default function App() {
       await tRef.current.getRestApi().authorize({ scope: "read" });
       setAuthorized(true);
       await loadAttachments(tRef.current);
-    } catch (err) {
-      console.error("Authorization failed:", err);
-    }
+    }catch (err) {
+  setError("Authorization failed");
+}
     setLoading(false);
   };
 
