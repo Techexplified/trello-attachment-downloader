@@ -9,19 +9,17 @@
     Authorize
   </button>
 
-  <script>
-    var t = TrelloPowerUp.iframe();
+<script>
+  var t = TrelloPowerUp.iframe();
 
-    document.getElementById("authBtn").addEventListener("click", function() {
-      
-    
-     t.set('member', 'private', 'token', 'dummy-token')
-  .then(function() {
-    return t.closePopup();
+  document.getElementById("authBtn").addEventListener("click", function() {
+    t.getRestApi()
+      .authorize({ scope: "read" })
+      .then(function() {
+        return t.closePopup();
+      });
   });
-
-    });
-  </script>
+</script>
 
 </body>
 </html>
