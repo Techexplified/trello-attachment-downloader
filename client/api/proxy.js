@@ -8,7 +8,6 @@ export default async function handler(req, res) {
     const sep = decodedUrl.includes('?') ? '&' : '?';
     const finalUrl = `${decodedUrl}${sep}key=${key}&token=${token}`;
 
-    console.log("Fetching:", finalUrl);
 
     const response = await fetch(finalUrl, {
       redirect: 'follow',
@@ -18,7 +17,7 @@ export default async function handler(req, res) {
       }
     });
 
-    console.log("Response status:", response.status);
+    
 
     if (!response.ok) throw new Error(`Trello returned ${response.status}`);
 
