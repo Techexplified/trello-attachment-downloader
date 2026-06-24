@@ -48,7 +48,7 @@ async function trelloFetch(path, key, token) {
 async function fetchBoardAttachments(boardId, key, token) {
   const [lists, cards] = await Promise.all([
     trelloFetch(`/boards/${boardId}/lists?fields=id,name`, key, token),
-    trelloFetch(`/boards/${boardId}/cards?attachments=true&attachment_fields=id,name,url,bytes,mimeType&fields=id,name,idList`, key, token),
+    trelloFetch(`/boards/${boardId}/cards?attachments=true&attachment_fields=id,name,url,bytes,mimeType,isUpload&fields=id,name,idList`, key, token),
   ]);
   const listMap = Object.fromEntries(lists.map((l) => [l.id, l.name]));
   const attachments = [];
@@ -170,20 +170,50 @@ function DownloaderScreen({ attachments, token }) {
       const zip   = new JSZip();
       const safe  = (name) => (name || "file").replace(/[/\\?%*:|"<>\x00]/g, "_").slice(0, 200);
       let done = 0;
+      let skippedCount = 0;
       await Promise.all(filtered.map(async (att) => {
         let folder = "";
         if (splitByList) folder = safe(att.listName) + "/";
         if (splitByCard) folder += safe(att.cardName) + "/";
-        const proxyUrl = `/api/proxy?token=${token}&url=${encodeURIComponent(att.url)}`;
-        const res = await fetch(proxyUrl, { signal: controller.signal });
-        if (!res.ok) throw new Error(`Failed to fetch ${att.name}`);
-        const blob = await res.blob();
-        const filename = folder + safe(att.name || att.id);
-        if (skipDuplicates && zip.files[filename]) { done++; setProgress(Math.round((done / filtered.length) * 90)); return; }
-        zip.file(filename, blob);
-        done++;
-        setProgress(Math.round((done / filtered.length) * 90));
+
+        // Only Trello-hosted attachments can be fetched through the proxy.
+        // External links (Drive, Dropbox, etc.) can't be authorized this way.
+        if (!att.isUpload) {
+          skippedCount++;
+          done++;
+          setProgress(Math.round((done / filtered.length) * 90));
+          return;
+        }
+
+        try {
+          const proxyUrl = `/api/proxy?token=${token}&url=${encodeURIComponent(att.url)}`;
+          const res = await fetch(proxyUrl, { signal: controller.signal });
+          if (!res.ok) {
+            skippedCount++;
+            done++;
+            setProgress(Math.round((done / filtered.length) * 90));
+            return;
+          }
+          const blob = await res.blob();
+          const filename = folder + safe(att.name || att.id);
+          if (skipDuplicates && zip.files[filename]) { done++; setProgress(Math.round((done / filtered.length) * 90)); return; }
+          zip.file(filename, blob);
+          done++;
+          setProgress(Math.round((done / filtered.length) * 90));
+        } catch (err) {
+          if (err.name !== "AbortError") {
+            skippedCount++;
+            done++;
+            setProgress(Math.round((done / filtered.length) * 90));
+          } else {
+            throw err; // let cancel still propagate
+          }
+        }
       }));
+
+      if (skippedCount > 0) {
+        console.log(`Skipped ${skippedCount} attachment(s) that couldn't be downloaded.`);
+      }
       setProgress(95);
       const content = await zip.generateAsync(
         { type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } },
