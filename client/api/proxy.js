@@ -5,9 +5,8 @@ export default async function handler(req, res) {
 
   try {
     const key = process.env.TRELLO_API_KEY;
-    const apiUrl = url.replace(/^https:\/\/trello\.com\//, 'https://api.trello.com/');
-const sep = apiUrl.includes('?') ? '&' : '?';
-const finalUrl = `${apiUrl}${sep}key=${key}&token=${token}`;
+    const sep = url.includes('?') ? '&' : '?';
+    const finalUrl = `${url}${sep}key=${key}&token=${token}`;
 
     const response = await fetch(finalUrl, {
       redirect: 'follow',
