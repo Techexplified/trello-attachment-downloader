@@ -11,10 +11,6 @@
         {
           "key": "Content-Security-Policy",
           "value": "frame-ancestors https://trello.com https://*.trello.com;"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "ALLOWALL"
         }
       ]
     }
