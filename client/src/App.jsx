@@ -37,6 +37,35 @@ function loadJSZip() {
   return jszipPromise;
 }
 
+let jspdfPromise = null;
+function loadJsPDF() {
+  if (jspdfPromise) return jspdfPromise;
+  jspdfPromise = new Promise((resolve, reject) => {
+    if (window.jspdf?.jsPDF) return resolve(window.jspdf.jsPDF);
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    script.onload = () => resolve(window.jspdf.jsPDF);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return jspdfPromise;
+}
+
+// Reads an image blob and returns { dataUrl, width, height } for placing on a PDF page.
+function blobToImageData(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve({ dataUrl: reader.result, width: img.width, height: img.height });
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 const TRELLO_BASE = "https://api.trello.com/1";
 async function trelloFetch(path, key, token) {
   const sep = path.includes("?") ? "&" : "?";
@@ -146,11 +175,18 @@ function DownloaderScreen({ attachments, token }) {
   const [downloading, setDownloading]       = useState(false);
   const [progress, setProgress]             = useState(0);
   const [error, setError]                   = useState(null);
+  const [outputFormat, setOutputFormat]     = useState("zip"); // "zip" | "images-pdf"
   const abortRef = useRef(null);
 
   const filtered   = attachments.filter((att) => selectedTypes[getCategory(att.mimeType)]);
   const totalBytes = filtered.reduce((s, a) => s + (a.bytes || 0), 0);
   const totalGB    = (totalBytes / 1e9).toFixed(2);
+
+  // Attachments that would actually go into the output for the selected format.
+  const imagesOnly    = filtered.filter((a) => getCategory(a.mimeType) === "Images");
+  const outputItems   = outputFormat === "images-pdf" ? imagesOnly : filtered;
+  const outputBytes   = outputItems.reduce((s, a) => s + (a.bytes || 0), 0);
+  const outputGB      = (outputBytes / 1e9).toFixed(2);
 
   // Count per type for the breakdown row
   const typeCounts = Object.keys(FILE_TYPES).reduce((acc, cat) => {
@@ -160,7 +196,64 @@ function DownloaderScreen({ attachments, token }) {
 
   const toggleType = (type) => setSelectedTypes((prev) => ({ ...prev, [type]: !prev[type] }));
 
+  // Fetches one attachment through the proxy and returns its blob, or null if it should be skipped.
+  const fetchAttachmentBlob = async (att, controller) => {
+    if (!att.url?.startsWith('https://trello.com') && !att.url?.startsWith('https://attachments.trello.com')) {
+      return null; // external link (Drive/Dropbox/etc.) — can't be proxied
+    }
+    const proxyUrl = `/api/proxy?token=${token}&url=${encodeURIComponent(att.url)}`;
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    if (!res.ok) return null;
+    return res.blob();
+  };
+
+  const handleDownloadImagesAsPdf = async () => {
+    if (imagesOnly.length === 0) { setError("No images match the current filters."); return; }
+    setError(null); setProgress(0); setDownloading(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const jsPDF = await loadJsPDF();
+      const pdf = new jsPDF({ unit: "pt" });
+      let done = 0;
+      let addedCount = 0;
+
+      for (const att of imagesOnly) {
+        if (att.mimeType === "image/svg+xml") { done++; setProgress(Math.round((done / imagesOnly.length) * 90)); continue; } // jsPDF can't embed SVG directly
+        try {
+          const blob = await fetchAttachmentBlob(att, controller);
+          if (!blob) { done++; setProgress(Math.round((done / imagesOnly.length) * 90)); continue; }
+          const { dataUrl, width, height } = await blobToImageData(blob);
+
+          if (addedCount > 0) pdf.addPage();
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const scale = Math.min(pageW / width, pageH / height);
+          const w = width * scale, h = height * scale;
+          const format = att.mimeType === "image/png" ? "PNG" : "JPEG";
+          pdf.addImage(dataUrl, format, (pageW - w) / 2, (pageH - h) / 2, w, h);
+          addedCount++;
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          // skip images that fail to load/convert
+        }
+        done++;
+        setProgress(Math.round((done / imagesOnly.length) * 90));
+      }
+
+      if (addedCount === 0) { setError("None of the selected images could be converted."); setDownloading(false); abortRef.current = null; return; }
+
+      setProgress(100);
+      pdf.save("trello-images.pdf");
+    } catch (err) {
+      if (err.name !== "AbortError") setError("PDF creation failed: " + err.message);
+    } finally {
+      setDownloading(false); abortRef.current = null;
+    }
+  };
+
   const handleDownload = async () => {
+    if (outputFormat === "images-pdf") return handleDownloadImagesAsPdf();
     if (filtered.length === 0) { setError("No attachments match the current filters."); return; }
     setError(null); setProgress(0); setDownloading(true);
     const controller = new AbortController();
@@ -178,7 +271,7 @@ function DownloaderScreen({ attachments, token }) {
 
         // Only Trello-hosted attachments can be fetched through the proxy.
         // External links (Drive, Dropbox, etc.) can't be authorized this way.
-        if (!att.isUpload) {
+        if (!att.url?.startsWith('https://trello.com') && !att.url?.startsWith('https://attachments.trello.com')) {
           skippedCount++;
           done++;
           setProgress(Math.round((done / filtered.length) * 90));

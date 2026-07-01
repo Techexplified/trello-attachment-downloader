@@ -5,19 +5,23 @@ export default async function handler(req, res) {
 
   try {
     const key = process.env.TRELLO_API_KEY;
-    const sep = url.includes('?') ? '&' : '?';
-    const finalUrl = `${url}${sep}key=${key}&token=${token}`;
 
-    const response = await fetch(finalUrl, {
+    // Trello's /download/ (S3-backed) route rejects key/token as query params —
+    // it only accepts them via the Authorization header. Query params still work
+    // for regular api.trello.com calls, but attachment downloads need this.
+    const response = await fetch(url, {
       redirect: 'follow',
       headers: {
-        'Accept': '*/*'
+        'Accept': '*/*',
+        'Authorization': `OAuth oauth_consumer_key="${key}", oauth_token="${token}"`,
       }
     });
 
     if (!response.ok) {
+      const bodyText = await response.text().catch(() => '');
       return res.status(response.status).json({
         error: `Trello returned ${response.status}`,
+        detail: bodyText.slice(0, 300),
       });
     }
 
