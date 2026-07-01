@@ -90,7 +90,73 @@ async function fetchBoardAttachments(boardId, key, token) {
   return { attachments, lists };
 }
 
-// ─── Toggle component ────────────────────────────────────────────────────────
+// ─── Format dropdown (custom, since native <select> can't be themed) ─────────
+function FormatDropdown({ value, onChange, imagesAvailable }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const options = [
+    { value: "zip", icon: "📦", label: "ZIP File (.zip)", disabled: false },
+    {
+      value: "images-pdf", icon: "🖼️", label: "Images as PDF",
+      disabled: !imagesAvailable, sublabel: imagesAvailable ? null : "No images to convert",
+    },
+  ];
+  const current = options.find((o) => o.value === value) || options[0];
+
+  return (
+    <div ref={rootRef} style={s.formatBox}>
+      <button
+        type="button"
+        style={s.formatTrigger}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span style={{ fontSize: 16 }}>{current.icon}</span>
+        <span style={{ fontSize: 13, color: "#e2e8f0", flex: 1, textAlign: "left" }}>{current.label}</span>
+        <span style={{ ...s.formatCaret, transform: open ? "rotate(180deg)" : "none" }}>▾</span>
+      </button>
+
+      {open && (
+        <div style={s.formatMenu}>
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => { if (opt.disabled) return; onChange(opt.value); setOpen(false); }}
+              style={{
+                ...s.formatMenuItem,
+                ...(opt.value === value ? s.formatMenuItemActive : {}),
+                ...(opt.disabled ? s.formatMenuItemDisabled : {}),
+              }}
+            >
+              <span style={{ fontSize: 15 }}>{opt.icon}</span>
+              <span style={{ flex: 1 }}>
+                <div>{opt.label}</div>
+                {opt.sublabel && <div style={s.formatMenuSublabel}>{opt.sublabel}</div>}
+              </span>
+              {opt.value === value && <span style={{ color: "#23B5B5", fontSize: 13 }}>✓</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function Toggle({ label, checked, onChange }) {
   return (
     <label style={s.toggleRow}>
@@ -389,20 +455,11 @@ function DownloaderScreen({ attachments, token }) {
 
           {/* ── Format + size ── */}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <div style={s.formatBox}>
-              <span style={{ fontSize: 16 }}>{outputFormat === "images-pdf" ? "🖼️" : "📦"}</span>
-              <select
-                value={outputFormat}
-                onChange={(e) => setOutputFormat(e.target.value)}
-                style={s.formatSelect}
-              >
-                <option value="zip">ZIP File (.zip)</option>
-                <option value="images-pdf" disabled={imagesOnly.length === 0}>
-                  Images as PDF{imagesOnly.length === 0 ? " (no images)" : ""}
-                </option>
-              </select>
-              <span style={s.formatCaret}>▾</span>
-            </div>
+            <FormatDropdown
+              value={outputFormat}
+              onChange={setOutputFormat}
+              imagesAvailable={imagesOnly.length > 0}
+            />
             <div style={s.sizeBox}>
               <div style={s.sizeLabel}>Estimated size</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#cbd5e1" }}>{outputGB} GB · {outputItems.length} files</div>
@@ -481,6 +538,17 @@ export default function App() {
       }
     })();
   }, []);
+
+  // Keep the Trello modal sized to whatever is actually rendered, instead of a
+  // fixed height that leaves dead space (short content) or clips content (long).
+  useEffect(() => {
+    if (!tRef.current) return;
+    const resize = () => tRef.current?.sizeTo(document.body);
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(document.body);
+    return () => observer.disconnect();
+  }, [authorized, initLoading, attachments]);
 
   const loadAttachments = async (trello) => {
     try {
@@ -646,20 +714,39 @@ const s = {
 
   // ── Format + size ──
   formatBox: {
-    flex: 1, background: "rgba(255,255,255,0.04)",
+    flex: 1, position: "relative",
+  },
+  formatTrigger: {
+    width: "100%", background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(255,255,255,0.07)",
     borderRadius: 9, padding: "10px 14px",
     display: "flex", alignItems: "center", gap: 10,
-    position: "relative", cursor: "pointer",
-  },
-  formatSelect: {
-    flex: 1, appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
-    background: "transparent", border: "none", outline: "none",
-    color: "#e2e8f0", fontSize: 13, fontFamily: "inherit",
-    cursor: "pointer", paddingRight: 16,
+    cursor: "pointer", fontFamily: "inherit",
   },
   formatCaret: {
-    position: "absolute", right: 14, fontSize: 11, color: "#64748b", pointerEvents: "none",
+    fontSize: 11, color: "#64748b", transition: "transform 0.15s ease",
+  },
+  formatMenu: {
+    position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+    background: "#132038",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 9, padding: 4,
+    boxShadow: "0 10px 24px rgba(0,0,0,0.4)",
+    zIndex: 20,
+  },
+  formatMenuItem: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "8px 10px", borderRadius: 6,
+    fontSize: 13, color: "#e2e8f0", cursor: "pointer",
+  },
+  formatMenuItemActive: {
+    background: "rgba(35,181,181,0.12)",
+  },
+  formatMenuItemDisabled: {
+    color: "#475569", cursor: "not-allowed",
+  },
+  formatMenuSublabel: {
+    fontSize: 11, color: "#64748b", marginTop: 1,
   },
   sizeBox: {
     background: "rgba(255,255,255,0.04)",
