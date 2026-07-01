@@ -390,12 +390,22 @@ function DownloaderScreen({ attachments, token }) {
           {/* ── Format + size ── */}
           <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
             <div style={s.formatBox}>
-              <span style={{ fontSize: 16 }}>📦</span>
-              <span style={{ fontSize: 13, color: "#e2e8f0" }}>ZIP File (.zip)</span>
+              <span style={{ fontSize: 16 }}>{outputFormat === "images-pdf" ? "🖼️" : "📦"}</span>
+              <select
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value)}
+                style={s.formatSelect}
+              >
+                <option value="zip">ZIP File (.zip)</option>
+                <option value="images-pdf" disabled={imagesOnly.length === 0}>
+                  Images as PDF{imagesOnly.length === 0 ? " (no images)" : ""}
+                </option>
+              </select>
+              <span style={s.formatCaret}>▾</span>
             </div>
             <div style={s.sizeBox}>
               <div style={s.sizeLabel}>Estimated size</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#cbd5e1" }}>{totalGB} GB · {filtered.length} files</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#cbd5e1" }}>{outputGB} GB · {outputItems.length} files</div>
             </div>
           </div>
 
@@ -640,6 +650,16 @@ const s = {
     border: "1px solid rgba(255,255,255,0.07)",
     borderRadius: 9, padding: "10px 14px",
     display: "flex", alignItems: "center", gap: 10,
+    position: "relative", cursor: "pointer",
+  },
+  formatSelect: {
+    flex: 1, appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
+    background: "transparent", border: "none", outline: "none",
+    color: "#e2e8f0", fontSize: 13, fontFamily: "inherit",
+    cursor: "pointer", paddingRight: 16,
+  },
+  formatCaret: {
+    position: "absolute", right: 14, fontSize: 11, color: "#64748b", pointerEvents: "none",
   },
   sizeBox: {
     background: "rgba(255,255,255,0.04)",
