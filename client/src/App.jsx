@@ -596,8 +596,30 @@ function DownloaderScreen({ attachments, token }) {
     }
   };
 
+ const handleDownloadManifest = () => {
+    if (filtered.length === 0) {
+      setError("No attachments match the current filters.");
+      return;
+    }
+    setError(null);
+    const csv = buildManifestCsv(filtered);
+    downloadBlob(csv, "trello-attachments-manifest.csv", "text/csv;charset=utf-8");
+  };
+
+  const handleDownloadIndex = () => {
+    if (filtered.length === 0) {
+      setError("No attachments match the current filters.");
+      return;
+    }
+    setError(null);
+    const html = buildIndexHtml(filtered);
+    downloadBlob(html, "trello-attachments-index.html", "text/html;charset=utf-8");
+  };
+
   const handleDownload = async () => {
     if (outputFormat === "images-pdf") return handleDownloadImagesAsPdf();
+    if (outputFormat === "csv-manifest") return handleDownloadManifest();
+    if (outputFormat === "html-index") return handleDownloadIndex();
     if (filtered.length === 0) {
       setError("No attachments match the current filters.");
       return;
